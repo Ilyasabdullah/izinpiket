@@ -122,13 +122,21 @@
 
         document.addEventListener('alpine:init', () => {
             Alpine.data('adminApp', () => ({
-                isLoggedIn: false,
+                // Cek status login dari localStorage saat pertama kali halaman dimuat
+                isLoggedIn: localStorage.getItem('admin_logged_in') === 'true',
                 pin: '',
                 activeMenu: 'data',
                 logs: [],
                 maxIzin: 5,
                 masaHukuman: 0,
                 zonaWaktu: 'GMT+9',
+
+                init() {
+                    // Jika sudah berstatus login sebelumnya, langsung ambil data terbaru
+                    if (this.isLoggedIn) {
+                        this.fetchData();
+                    }
+                },
 
                 async requestAPI(payload, loadingMsg = 'Memproses...') {
                     Swal.fire({ title: loadingMsg, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
@@ -150,6 +158,8 @@
                     if (res.status) {
                         Swal.close();
                         this.isLoggedIn = true;
+                        // Simpan status login ke localStorage agar tahan saat halaman direload
+                        localStorage.setItem('admin_logged_in', 'true');
                         this.pin = '';
                         this.fetchData();
                     } else {
@@ -159,6 +169,8 @@
 
                 logout() {
                     this.isLoggedIn = false;
+                    // Hapus status login dari localStorage saat tombol Keluar diklik
+                    localStorage.removeItem('admin_logged_in');
                     this.logs = [];
                 },
 
