@@ -78,6 +78,7 @@
                                         <td class="p-4 text-sm">
                                             <span x-show="log.status === 'Keluar'" class="px-2 py-1 bg-amber-100 text-amber-700 text-xs rounded-full">Di Luar</span>
                                             <span x-show="log.status === 'Kembali'" class="px-2 py-1 bg-emerald-100 text-emerald-700 text-xs rounded-full">Selesai</span>
+                                            <span x-show="log.status === 'Kembali (Pelanggaran)'" class="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full">Pelanggaran</span>
                                         </td>
                                     </tr>
                                 </template>
@@ -98,6 +99,9 @@
                     <label class="block text-sm font-medium text-slate-700 mb-2">Batas Maksimum Siswa Keluar</label>
                     <input type="number" x-model="maxIzin" class="w-full px-4 py-2 rounded-lg bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
                     
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Masa Sanksi Pelanggaran (Hari)</label>
+                    <input type="number" x-model="masaHukuman" class="w-full px-4 py-2 rounded-lg bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+
                     <label class="block text-sm font-medium text-slate-700 mb-2">Zona Waktu</label>
                     <select x-model="zonaWaktu" class="w-full px-4 py-2 rounded-lg bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-6">
                         <option value="GMT+7">WIB (Waktu Indonesia Barat / GMT+7)</option>
@@ -123,6 +127,7 @@
                 activeMenu: 'data',
                 logs: [],
                 maxIzin: 5,
+                masaHukuman: 0,
                 zonaWaktu: 'GMT+9',
 
                 async requestAPI(payload, loadingMsg = 'Memproses...') {
@@ -162,14 +167,23 @@
                     if (res.status) {
                         this.logs = res.logs;
                         this.maxIzin = res.maxIzin;
-                        this.zonaWaktu = res.zonaWaktu || 'GMT+9'; // Sinkronisasi zona waktu
+                        this.masaHukuman = res.masaHukuman || 0;
+                        this.zonaWaktu = res.zonaWaktu || 'GMT+9';
                         Swal.close();
                     }
                 },
 
                 async saveSettings() {
-                    if (!this.maxIzin || this.maxIzin < 1) return Swal.fire('Error', 'Jumlah tidak valid', 'error');
-                    const res = await this.requestAPI({ action: 'updateSettings', newMax: this.maxIzin, newTimeZone: this.zonaWaktu }, 'Menyimpan...');
+                    if (!this.maxIzin || this.maxIzin < 1) return Swal.fire('Error', 'Jumlah Kuota tidak valid', 'error');
+                    if (this.masaHukuman < 0) return Swal.fire('Error', 'Masa Hukuman tidak valid', 'error');
+                    
+                    const res = await this.requestAPI({ 
+                        action: 'updateSettings', 
+                        newMax: this.maxIzin, 
+                        newTimeZone: this.zonaWaktu,
+                        newMasaHukuman: this.masaHukuman 
+                    }, 'Menyimpan...');
+                    
                     if (res.status) {
                         Swal.fire('Berhasil', 'Pengaturan diperbarui.', 'success');
                     }
