@@ -76,7 +76,7 @@
 
             // Kirim data ke Google Apps Script
             fetch(SCRIPT_URL, {
-                redirect: 'follow', // Penting untuk bypass redirect Google
+                redirect: 'follow', // <--- BARIS INI JUGA WAJIB ADA DI SINI
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: JSON.stringify({ action: 'scan', qrText: decodedText })
