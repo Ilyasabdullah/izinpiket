@@ -125,15 +125,25 @@
                     Swal.fire({ title: loadingMsg, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                     try {
                         const response = await fetch(SCRIPT_URL, {
-                            redirect: 'follow', // <--- BARIS INI WAJIB DITAMBAHKAN
+                            redirect: 'follow',
                             method: 'POST',
                             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                             body: JSON.stringify(payload)
                         });
-                        return await response.json();
+                        
+                        // Baca balasan Google sebagai Teks biasa terlebih dahulu
+                        const textData = await response.text(); 
+                        try {
+                            const jsonData = JSON.parse(textData); // Coba jadikan JSON
+                            return jsonData;
+                        } catch(e) {
+                            // Jika bukan JSON (HTML Error dari Google), tampilkan error aslinya
+                            console.error("Error Asli Google:", textData);
+                            Swal.fire('Error Sistem Google', textData.substring(0, 150) + '...', 'error');
+                            return { status: false };
+                        }
                     } catch (error) {
-                        console.error(error);
-                        Swal.fire('Error', 'Koneksi diblokir. Pastikan akses Google Apps Script adalah "Siapa Saja".', 'error');
+                        Swal.fire('Error', 'Koneksi terputus atau URL salah.', 'error');
                         return { status: false };
                     }
                 },
