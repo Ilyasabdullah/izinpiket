@@ -75,23 +75,31 @@
             });
             
             // --- BAGIAN INI YANG DIUBAH MENJADI METODE GET ---
-            const payload = JSON.stringify({ action: 'scan', qrText: decodedText });
+            // Bersihkan spasi tersembunyi dari hasil scan QR
+            const nisnBersih = decodedText.trim();
+            
+            // Siapkan payload untuk GET
+            const payload = JSON.stringify({ action: 'scan', qrText: nisnBersih });
             const urlWithParams = SCRIPT_URL + "?data=" + encodeURIComponent(payload);
 
-            fetch(urlWithParams, { method: 'GET' })
-            // ------------------------------------------------
-            .then(response => response.json())
+            fetch(urlWithParams, { 
+                method: 'GET',
+                redirect: 'follow'
+            })
+            .then(response => {
+                if (!response.ok) throw new Error("HTTP Status: " + response.status);
+                return response.json();
+            })
             .then(data => {
                 if (data.status) {
                     Swal.fire({
                         icon: 'success',
                         title: data.tipe === 'keluar' ? 'Diizinkan Keluar' : 'Berhasil Kembali',
-                        text: `${data.data} (Sisa Kuota Keluar: ${data.sisaKuota})`,
+                        text: `${data.data} (Sisa Kuota: ${data.sisaKuota})`,
                         timer: 2000,
                         showConfirmButton: false
                     });
 
-                    // Update Kotak Hasil
                     studentInfo.textContent = data.data;
                     timeInfo.textContent = `Waktu Scan: ${new Date().toLocaleTimeString('id-ID')}`;
                     
@@ -102,25 +110,21 @@
                         statusBadge.textContent = "KEMBALI KE SEKOLAH";
                         statusBadge.className = "inline-block px-3 py-1 text-xs font-semibold rounded-full mb-3 bg-emerald-100 text-emerald-700";
                     }
-                    
                     resultBox.classList.remove('hidden');
 
                 } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Gagal',
-                        text: data.message
-                    });
+                    Swal.fire({ icon: 'error', title: 'Gagal', text: data.message });
                 }
             })
             .catch(error => {
                 console.error(error);
-                Swal.fire('Error', 'Gagal memproses data. Pastikan URL Script benar dan Akses Deploy disetel "Siapa Saja".', 'error');
+                // Menampilkan error asli dari browser agar tidak menebak-nebak
+                Swal.fire('Error Browser', error.message === 'Failed to fetch' ? 'Koneksi diblokir oleh browser HP (Cache belum bersih).' : error.message, 'error');
             })
             .finally(() => {
                 setTimeout(() => {
                     isScanning = false;
-                    html5QrcodeScanner.resume(); // Lanjutkan kamera
+                    html5QrcodeScanner.resume();
                 }, 2500);
             });
         }
