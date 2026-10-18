@@ -124,11 +124,10 @@
                 async requestAPI(payload, loadingMsg = 'Memproses...') {
                     Swal.fire({ title: loadingMsg, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                     try {
-                        const response = await fetch(SCRIPT_URL, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                            body: new URLSearchParams({ data: JSON.stringify(payload) })
-                        });
+                        const payloadString = JSON.stringify(payload);
+                        const urlWithParams = SCRIPT_URL + "?data=" + encodeURIComponent(payloadString);
+                        
+                        const response = await fetch(urlWithParams, { method: 'GET' });
                         return await response.json();
                     } catch (error) {
                         console.error(error);
