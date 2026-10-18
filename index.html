@@ -76,9 +76,8 @@
 
             // Kirim data ke Google Apps Script
             fetch(SCRIPT_URL, {
+                redirect: 'follow', // Penting untuk bypass redirect Google
                 method: 'POST',
-                mode: 'no-cors', // Pakai no-cors jika terhalang CORS, tapi response tidak terbaca detail
-                // Disarankan pakai header text/plain untuk bypass CORS GAS
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: JSON.stringify({ action: 'scan', qrText: decodedText })
             })
@@ -93,7 +92,7 @@
                         showConfirmButton: false
                     });
 
-                    // Update Kotak Hasil di bawah Scanner
+                    // Update Kotak Hasil
                     studentInfo.textContent = data.data;
                     timeInfo.textContent = `Waktu Scan: ${new Date().toLocaleTimeString('id-ID')}`;
                     
@@ -116,14 +115,14 @@
                 }
             })
             .catch(error => {
-                Swal.fire('Error', 'Terjadi kesalahan jaringan atau server.', 'error');
                 console.error(error);
+                Swal.fire('Error', 'Gagal memproses data. Pastikan URL Script benar dan Akses Deploy disetel "Siapa Saja".', 'error');
             })
             .finally(() => {
                 setTimeout(() => {
                     isScanning = false;
                     html5QrcodeScanner.resume(); // Lanjutkan kamera
-                }, 2500); // Kamera aktif lagi setelah 2.5 detik
+                }, 2500);
             });
         }
     </script>
