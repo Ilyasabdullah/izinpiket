@@ -1,1 +1,177 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Admin - Izin Sekolah</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        @media print { body { background-color: white; } }
+    </style>
+</head>
+<body class="text-slate-800 antialiased" x-data="adminApp()">
 
+    <!-- HALAMAN LOGIN -->
+    <div x-show="!isLoggedIn" class="min-h-screen flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 max-w-sm w-full text-center">
+            <h2 class="text-2xl font-bold text-slate-700 mb-6">Login Piket/Admin</h2>
+            <input type="password" x-model="pin" @keyup.enter="login()" placeholder="Masukkan PIN" class="w-full px-4 py-3 rounded-lg bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4 text-center tracking-widest text-lg">
+            <button @click="login()" class="w-full bg-slate-800 text-white font-semibold py-3 rounded-lg hover:bg-slate-700 transition">Masuk</button>
+        </div>
+    </div>
+
+    <!-- HALAMAN DASHBOARD -->
+    <div x-show="isLoggedIn" x-cloak class="min-h-screen flex flex-col">
+        
+        <!-- Navbar (Disembunyikan saat cetak) -->
+        <nav class="bg-white shadow-sm border-b border-slate-200 px-4 py-3 print:hidden">
+            <div class="max-w-6xl mx-auto flex justify-between items-center">
+                <h1 class="font-bold text-lg text-slate-700">e-Izin Spensa</h1>
+                <div class="flex gap-2">
+                    <button @click="activeMenu = 'data'" :class="activeMenu === 'data' ? 'bg-blue-50 text-blue-700' : 'text-slate-500'" class="px-3 py-1.5 rounded-md text-sm font-medium transition">Data Log</button>
+                    <button @click="activeMenu = 'pengaturan'" :class="activeMenu === 'pengaturan' ? 'bg-blue-50 text-blue-700' : 'text-slate-500'" class="px-3 py-1.5 rounded-md text-sm font-medium transition">Pengaturan</button>
+                    <button @click="logout()" class="px-3 py-1.5 rounded-md text-sm font-medium text-red-600 hover:bg-red-50 transition">Keluar</button>
+                </div>
+            </div>
+        </nav>
+
+        <main class="flex-1 max-w-6xl w-full mx-auto p-4 mt-4">
+            
+            <!-- TAB: DATA LOG -->
+            <div x-show="activeMenu === 'data'">
+                <div class="flex justify-between items-end mb-4 print:hidden">
+                    <h2 class="text-xl font-bold text-slate-700">Rekap Izin Keluar</h2>
+                    <div class="flex gap-2">
+                        <button @click="fetchData()" class="bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-lg text-sm hover:bg-slate-50">Refresh</button>
+                        <button onclick="window.print()" class="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm hover:bg-slate-700">Cetak Laporan</button>
+                    </div>
+                </div>
+
+                <!-- Header Cetak -->
+                <div class="hidden print:block text-center mb-6">
+                    <h2 class="text-xl font-bold">Laporan Izin Keluar Siswa</h2>
+                    <p class="text-sm">Dicetak pada: <span x-text="new Date().toLocaleString('id-ID')"></span></p>
+                </div>
+
+                <!-- Tabel Data Responsif -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200 text-sm">
+                                    <th class="p-4 font-semibold text-slate-600">Tanggal</th>
+                                    <th class="p-4 font-semibold text-slate-600">Nama Siswa</th>
+                                    <th class="p-4 font-semibold text-slate-600">Kelas</th>
+                                    <th class="p-4 font-semibold text-slate-600">Keluar</th>
+                                    <th class="p-4 font-semibold text-slate-600">Kembali</th>
+                                    <th class="p-4 font-semibold text-slate-600">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="(log, index) in logs" :key="index">
+                                    <tr class="border-b border-slate-100 hover:bg-slate-50/50">
+                                        <td class="p-4 text-sm" x-text="log.tanggal"></td>
+                                        <td class="p-4 text-sm font-medium" x-text="log.nama"></td>
+                                        <td class="p-4 text-sm text-slate-500" x-text="log.kelas"></td>
+                                        <td class="p-4 text-sm text-amber-600" x-text="log.jamKeluar"></td>
+                                        <td class="p-4 text-sm text-emerald-600" x-text="log.jamBalik || '-'"></td>
+                                        <td class="p-4 text-sm">
+                                            <span x-show="log.status === 'Keluar'" class="px-2 py-1 bg-amber-100 text-amber-700 text-xs rounded-full">Di Luar</span>
+                                            <span x-show="log.status === 'Kembali'" class="px-2 py-1 bg-emerald-100 text-emerald-700 text-xs rounded-full">Selesai</span>
+                                        </td>
+                                    </tr>
+                                </template>
+                                <tr x-show="logs.length === 0">
+                                    <td colspan="6" class="p-8 text-center text-slate-400">Belum ada data izin.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: PENGATURAN -->
+            <div x-show="activeMenu === 'pengaturan'" class="print:hidden">
+                <h2 class="text-xl font-bold text-slate-700 mb-4">Pengaturan Sistem</h2>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 max-w-md">
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Batas Maksimum Siswa Keluar Bersamaan</label>
+                    <div class="flex gap-2">
+                        <input type="number" x-model="maxIzin" class="flex-1 px-4 py-2 rounded-lg bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <button @click="saveSettings()" class="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm hover:bg-slate-700">Simpan</button>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-2">Jika kuota penuh, scanner tidak akan mengizinkan siswa lain keluar hingga ada yang kembali.</p>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        // MASUKKAN URL WEB APP GOOGLE APPS SCRIPT ANDA DI SINI
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby.../exec';
+
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('adminApp', () => ({
+                isLoggedIn: false,
+                pin: '',
+                activeMenu: 'data', // 'data' atau 'pengaturan'
+                logs: [],
+                maxIzin: 5,
+
+                async requestAPI(payload, loadingMsg = 'Memproses...') {
+                    Swal.fire({ title: loadingMsg, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                    try {
+                        const response = await fetch(SCRIPT_URL, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                            body: JSON.stringify(payload)
+                        });
+                        return await response.json();
+                    } catch (error) {
+                        Swal.fire('Error', 'Koneksi ke server gagal.', 'error');
+                        return { status: false };
+                    }
+                },
+
+                async login() {
+                    if (!this.pin) return;
+                    const res = await this.requestAPI({ action: 'login', pin: this.pin }, 'Verifikasi...');
+                    if (res.status) {
+                        Swal.close();
+                        this.isLoggedIn = true;
+                        this.pin = '';
+                        this.fetchData();
+                    } else {
+                        Swal.fire('Gagal', res.message, 'error');
+                    }
+                },
+
+                logout() {
+                    this.isLoggedIn = false;
+                    this.logs = [];
+                },
+
+                async fetchData() {
+                    const res = await this.requestAPI({ action: 'getDashboardData' }, 'Memuat Data...');
+                    if (res.status) {
+                        this.logs = res.logs;
+                        this.maxIzin = res.maxIzin;
+                        Swal.close();
+                    }
+                },
+
+                async saveSettings() {
+                    if (!this.maxIzin || this.maxIzin < 1) return Swal.fire('Error', 'Jumlah tidak valid', 'error');
+                    const res = await this.requestAPI({ action: 'updateSettings', newMax: this.maxIzin }, 'Menyimpan...');
+                    if (res.status) {
+                        Swal.fire('Berhasil', 'Pengaturan diperbarui.', 'success');
+                    }
+                }
+            }))
+        })
+    </script>
+</body>
+</html>
