@@ -13,7 +13,7 @@
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
         #reader { width: 100%; max-width: 400px; margin: 0 auto; border-radius: 12px; overflow: hidden; border: none; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
-        #reader video { object-fit: cover; }
+        #reader video { object-fit: cover !important; width: 100% !important; border-radius: 12px; }
     </style>
 </head>
 <body class="text-slate-800 antialiased min-h-screen flex flex-col">
@@ -28,63 +28,100 @@
         <!-- Scanner Box -->
         <div class="bg-white p-2 rounded-2xl shadow-sm border border-slate-100">
             <div id="reader"></div>
+            <!-- Tombol Kamera Manual -->
+            <div class="mt-4 flex gap-2 justify-center">
+                <button id="btnStart" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition">
+                    Mulai Kamera
+                </button>
+                <button id="btnStop" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-600 transition hidden">
+                    Matikan Kamera
+                </button>
+            </div>
         </div>
 
-        <!-- Result Box (Muncul Nama dan Kelas di sini) -->
+        <!-- Result Box -->
         <div id="resultBox" class="hidden bg-white rounded-xl p-5 shadow-sm border border-slate-200 text-center transition-all">
-            <div id="statusBadge" class="inline-block px-3 py-1 text-xs font-semibold rounded-full mb-3">
-                <!-- Status Keluar / Kembali -->
-            </div>
-            <h2 id="studentInfo" class="text-xl font-bold text-slate-700">Andi [VII A]</h2>
-            <p id="timeInfo" class="text-sm text-slate-500 mt-2">Waktu Scan: 00:00</p>
+            <div id="statusBadge" class="inline-block px-3 py-1 text-xs font-semibold rounded-full mb-3"></div>
+            <h2 id="studentInfo" class="text-xl font-bold text-slate-700">-</h2>
+            <p id="timeInfo" class="text-sm text-slate-500 mt-2">-</p>
         </div>
 
     </main>
 
-    <!-- Footer Script -->
     <script>
         // MASUKKAN URL WEB APP GOOGLE APPS SCRIPT ANDA DI SINI
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxmmxJ2ULhChu4K3XCoKY0gRZlLidrj2Pygbkc_yMtB0FmH_3IJsbc0mNGKDtwBd4C4iQ/exec'; 
         
         let isScanning = false;
+        let html5QrCode;
+        
         const resultBox = document.getElementById('resultBox');
         const studentInfo = document.getElementById('studentInfo');
         const statusBadge = document.getElementById('statusBadge');
         const timeInfo = document.getElementById('timeInfo');
+        const btnStart = document.getElementById('btnStart');
+        const btnStop = document.getElementById('btnStop');
 
-        // Inisialisasi Scanner
-        const html5QrcodeScanner = new Html5QrcodeScanner(
-            "reader", { fps: 10, qrbox: {width: 250, height: 250}, aspectRatio: 1.0 }, false);
+        // Fungsi Memulai Kamera
+        function startCamera() {
+            if (!html5QrCode) {
+                html5QrCode = new Html5Qrcode("reader");
+            }
+            
+            html5QrCode.start(
+                { facingMode: "environment" }, // Kamera belakang
+                { fps: 10, qrbox: { width: 250, height: 250 } },
+                onScanSuccess,
+                (errorMessage) => { /* Abaikan error mencari frame */ }
+            ).then(() => {
+                btnStart.classList.add('hidden');
+                btnStop.classList.remove('hidden');
+            }).catch((err) => {
+                Swal.fire('Kamera Error', 'Izinkan akses kamera di browser Anda.', 'error');
+            });
+        }
 
-        html5QrcodeScanner.render(onScanSuccess);
+        // Fungsi Menghentikan Kamera Tanpa Error
+        function stopCamera() {
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    html5QrCode.clear();
+                    btnStart.classList.remove('hidden');
+                    btnStop.classList.add('hidden');
+                }).catch((err) => {
+                    console.log("Kamera sudah berhenti.");
+                });
+            }
+        }
 
+        // Event Listeners Tombol
+        btnStart.addEventListener('click', startCamera);
+        btnStop.addEventListener('click', stopCamera);
+
+        // Auto-start saat halaman dimuat
+        document.addEventListener("DOMContentLoaded", () => {
+            setTimeout(startCamera, 500); // Jeda sedikit agar elemen 'reader' siap
+        });
+
+        // Logika saat Scan Berhasil
         function onScanSuccess(decodedText, decodedResult) {
-            if (isScanning) return; // Cegah scan berulang saat sedang memproses
+            if (isScanning) return;
             
             isScanning = true;
-            html5QrcodeScanner.pause(true); // Jeda kamera sebentar
+            stopCamera(); // Hentikan kamera sementara agar tidak scan berulang
             
-            // Tampilkan loading SweetAlert
             Swal.fire({
                 title: 'Memproses Data...',
                 text: 'Mengecek kuota dan status siswa',
                 allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
+                didOpen: () => { Swal.showLoading(); }
             });
             
-            // Bersihkan spasi tersembunyi dari hasil scan QR
             const nisnBersih = decodedText.trim();
-            
-            // Siapkan payload untuk GET
             const payload = JSON.stringify({ action: 'scan', qrText: nisnBersih });
             const urlWithParams = SCRIPT_URL + "?data=" + encodeURIComponent(payload);
 
-            fetch(urlWithParams, { 
-                method: 'GET',
-                redirect: 'follow'
-            })
+            fetch(urlWithParams, { method: 'GET', redirect: 'follow' })
             .then(response => {
                 if (!response.ok) throw new Error("HTTP Status: " + response.status);
                 return response.json();
@@ -116,14 +153,12 @@
                 }
             })
             .catch(error => {
-                console.error(error);
-                // Menampilkan error asli dari browser agar tidak menebak-nebak
-                Swal.fire('Error Browser', error.message === 'Failed to fetch' ? 'Koneksi diblokir oleh browser HP (Cache belum bersih).' : error.message, 'error');
+                Swal.fire('Error', 'Gagal memproses data.', 'error');
             })
             .finally(() => {
                 setTimeout(() => {
                     isScanning = false;
-                    html5QrcodeScanner.resume();
+                    startCamera(); // Nyalakan kamera lagi
                 }, 2500);
             });
         }
