@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Izin Keluar Sekolah</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- HTML5 QR Code -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        #reader { width: 100%; max-width: 400px; margin: 0 auto; border-radius: 12px; overflow: hidden; border: none; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        #reader video { object-fit: cover; }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <main class="flex-1 max-w-md w-full mx-auto p-4 flex flex-col gap-6 pt-8">
+        <!-- Header -->
+        <div class="text-center">
+            <h1 class="text-2xl font-bold text-slate-800">Scan Izin Keluar</h1>
+            <p class="text-sm text-slate-500 mt-1">Arahkan QR Code Siswa ke kamera</p>
+        </div>
+
+        <!-- Scanner Box -->
+        <div class="bg-white p-2 rounded-2xl shadow-sm border border-slate-100">
+            <div id="reader"></div>
+        </div>
+
+        <!-- Result Box (Muncul Nama dan Kelas di sini) -->
+        <div id="resultBox" class="hidden bg-white rounded-xl p-5 shadow-sm border border-slate-200 text-center transition-all">
+            <div id="statusBadge" class="inline-block px-3 py-1 text-xs font-semibold rounded-full mb-3">
+                <!-- Status Keluar / Kembali -->
+            </div>
+            <h2 id="studentInfo" class="text-xl font-bold text-slate-700">Andi [VII A]</h2>
+            <p id="timeInfo" class="text-sm text-slate-500 mt-2">Waktu Scan: 00:00</p>
+        </div>
+
+    </main>
+
+    <!-- Footer Script -->
+    <script>
+        // MASUKKAN URL WEB APP GOOGLE APPS SCRIPT ANDA DI SINI
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby.../exec'; 
+        
+        let isScanning = false;
+        const resultBox = document.getElementById('resultBox');
+        const studentInfo = document.getElementById('studentInfo');
+        const statusBadge = document.getElementById('statusBadge');
+        const timeInfo = document.getElementById('timeInfo');
+
+        // Inisialisasi Scanner
+        const html5QrcodeScanner = new Html5QrcodeScanner(
+            "reader", { fps: 10, qrbox: {width: 250, height: 250}, aspectRatio: 1.0 }, false);
+
+        html5QrcodeScanner.render(onScanSuccess);
+
+        function onScanSuccess(decodedText, decodedResult) {
+            if (isScanning) return; // Cegah scan berulang saat sedang memproses
+            
+            isScanning = true;
+            html5QrcodeScanner.pause(true); // Jeda kamera sebentar
+            
+            // Tampilkan loading SweetAlert
+            Swal.fire({
+                title: 'Memproses Data...',
+                text: 'Mengecek kuota dan status siswa',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            // Kirim data ke Google Apps Script
+            fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors', // Pakai no-cors jika terhalang CORS, tapi response tidak terbaca detail
+                // Disarankan pakai header text/plain untuk bypass CORS GAS
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ action: 'scan', qrText: decodedText })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: data.tipe === 'keluar' ? 'Diizinkan Keluar' : 'Berhasil Kembali',
+                        text: `${data.data} (Sisa Kuota Keluar: ${data.sisaKuota})`,
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+
+                    // Update Kotak Hasil di bawah Scanner
+                    studentInfo.textContent = data.data;
+                    timeInfo.textContent = `Waktu Scan: ${new Date().toLocaleTimeString('id-ID')}`;
+                    
+                    if (data.tipe === 'keluar') {
+                        statusBadge.textContent = "IZIN KELUAR";
+                        statusBadge.className = "inline-block px-3 py-1 text-xs font-semibold rounded-full mb-3 bg-amber-100 text-amber-700";
+                    } else {
+                        statusBadge.textContent = "KEMBALI KE SEKOLAH";
+                        statusBadge.className = "inline-block px-3 py-1 text-xs font-semibold rounded-full mb-3 bg-emerald-100 text-emerald-700";
+                    }
+                    
+                    resultBox.classList.remove('hidden');
+
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal',
+                        text: data.message
+                    });
+                }
+            })
+            .catch(error => {
+                Swal.fire('Error', 'Terjadi kesalahan jaringan atau server.', 'error');
+                console.error(error);
+            })
+            .finally(() => {
+                setTimeout(() => {
+                    isScanning = false;
+                    html5QrcodeScanner.resume(); // Lanjutkan kamera
+                }, 2500); // Kamera aktif lagi setelah 2.5 detik
+            });
+        }
+    </script>
+</body>
+</html>
