@@ -75,11 +75,11 @@
             });
 
             // Kirim data ke Google Apps Script
+            // Kirim data menggunakan format Form Data ke GAS
             fetch(SCRIPT_URL, {
-                redirect: 'follow', // <--- BARIS INI JUGA WAJIB ADA DI SINI
                 method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ action: 'scan', qrText: decodedText })
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ data: JSON.stringify({ action: 'scan', qrText: decodedText }) })
             })
             .then(response => response.json())
             .then(data => {
