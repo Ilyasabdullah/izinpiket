@@ -19,16 +19,14 @@
 <body class="text-slate-800 antialiased min-h-screen flex flex-col">
 
     <main class="flex-1 max-w-md w-full mx-auto p-4 flex flex-col gap-6 pt-8">
-        <!-- Header -->
+        
         <div class="text-center">
             <h1 class="text-2xl font-bold text-slate-800">Scan Izin Keluar</h1>
             <p class="text-sm text-slate-500 mt-1">Arahkan QR Code Siswa ke kamera</p>
         </div>
 
-        <!-- Scanner Box -->
         <div class="bg-white p-2 rounded-2xl shadow-sm border border-slate-100">
             <div id="reader"></div>
-            <!-- Tombol Kontrol Kamera -->
             <div class="mt-4 flex gap-2 justify-center flex-wrap">
                 <button id="btnStart" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition">
                     Mulai Kamera
@@ -42,16 +40,12 @@
             </div>
         </div>
 
-        <!-- Result Box (Daftar Siswa Keluar) -->
         <div id="resultBox" class="hidden bg-white rounded-xl p-5 shadow-sm border border-slate-200 text-left transition-all">
             <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-2">
                 <h3 class="font-bold text-slate-700">Daftar Izin Keluar</h3>
                 <span id="kuotaBadge" class="bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1 rounded-full">Sisa Kuota: -</span>
             </div>
-            
-            <ul id="listSiswaKeluar" class="space-y-3">
-                <!-- Daftar siswa akan dimunculkan di sini oleh Javascript -->
-            </ul>
+            <ul id="listSiswaKeluar" class="space-y-3"></ul>
         </div>
 
     </main>
@@ -62,17 +56,62 @@
         
         let isScanning = false;
         let html5QrCode;
-        let currentFacingMode = "environment"; // Default kamera belakang
+        let currentFacingMode = "environment";
         
         const resultBox = document.getElementById('resultBox');
         const listSiswaKeluar = document.getElementById('listSiswaKeluar');
         const kuotaBadge = document.getElementById('kuotaBadge');
-        
         const btnStart = document.getElementById('btnStart');
         const btnSwitch = document.getElementById('btnSwitch');
         const btnStop = document.getElementById('btnStop');
 
-        // Fungsi Memulai Kamera
+        // PEMBERSIH FORMAT WAKTU
+        function formatWaktu(jamString) {
+            if (!jamString) return "-";
+            if (jamString.includes('T')) {
+                return jamString.split('T')[1].substring(0, 8); // Ambil hanya HH:mm:ss
+            }
+            return jamString;
+        }
+
+        // FUNGSI RENDER DAFTAR SISWA
+        function renderListKeluar(listKeluar, sisaKuota) {
+            listSiswaKeluar.innerHTML = '';
+            if (listKeluar && listKeluar.length > 0) {
+                listKeluar.forEach(siswa => {
+                    const li = document.createElement('li');
+                    li.className = "flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-200";
+                    li.innerHTML = `
+                        <div>
+                            <p class="font-bold text-slate-700 text-sm">${siswa.nama}</p>
+                            <p class="text-xs text-slate-500">Kelas: ${siswa.kelas}</p>
+                        </div>
+                        <span class="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-1 rounded">Keluar: ${formatWaktu(siswa.jam)}</span>
+                    `;
+                    listSiswaKeluar.appendChild(li);
+                });
+            } else {
+                listSiswaKeluar.innerHTML = '<li class="text-center text-sm text-slate-400 py-4">Semua siswa sudah berada di sekolah.</li>';
+            }
+            kuotaBadge.textContent = `Sisa Kuota: ${sisaKuota}`;
+            resultBox.classList.remove('hidden');
+        }
+
+        // AUTO-LOAD SAAT HALAMAN DIBUKA (MENCEGAH DAFTAR HILANG SAAT RELOAD)
+        document.addEventListener("DOMContentLoaded", () => {
+            const payload = JSON.stringify({ action: 'init' });
+            const urlWithParams = SCRIPT_URL + "?data=" + encodeURIComponent(payload);
+            
+            fetch(urlWithParams, { method: 'GET', redirect: 'follow' })
+            .then(res => res.json())
+            .then(data => {
+                if(data.status) renderListKeluar(data.listKeluar, data.sisaKuota);
+            })
+            .catch(err => console.error("Gagal load data awal: ", err));
+
+            setTimeout(startCamera, 500);
+        });
+
         function startCamera() {
             if (!html5QrCode) { html5QrCode = new Html5Qrcode("reader"); }
             
@@ -80,17 +119,16 @@
                 { facingMode: currentFacingMode },
                 { fps: 10, qrbox: { width: 250, height: 250 } },
                 onScanSuccess,
-                (errorMessage) => { /* Abaikan error mencari frame */ }
+                (errorMessage) => {}
             ).then(() => {
                 btnStart.classList.add('hidden');
                 btnSwitch.classList.remove('hidden');
                 btnStop.classList.remove('hidden');
             }).catch((err) => {
-                Swal.fire('Kamera Error', 'Izinkan akses kamera di browser Anda.', 'error');
+                console.log(err);
             });
         }
 
-        // Fungsi Menghentikan Kamera
         function stopCamera() {
             if (html5QrCode) {
                 html5QrCode.stop().then(() => {
@@ -98,41 +136,30 @@
                     btnStart.classList.remove('hidden');
                     btnSwitch.classList.add('hidden');
                     btnStop.classList.add('hidden');
-                }).catch((err) => {
-                    console.log("Kamera sudah berhenti.");
-                });
+                }).catch((err) => {});
             }
         }
 
-        // Fungsi Ganti Kamera (Depan/Belakang)
         function switchCamera() {
             currentFacingMode = (currentFacingMode === "environment") ? "user" : "environment";
             if (html5QrCode) {
                 html5QrCode.stop().then(() => {
                     html5QrCode.clear();
-                    startCamera(); // Jalankan ulang dengan mode baru
-                }).catch(() => {
                     startCamera();
-                });
+                }).catch(() => startCamera());
             }
         }
 
-        // Event Listeners Tombol
         btnStart.addEventListener('click', startCamera);
         btnStop.addEventListener('click', stopCamera);
         btnSwitch.addEventListener('click', switchCamera);
 
-        // Auto-start saat halaman dimuat
-        document.addEventListener("DOMContentLoaded", () => {
-            setTimeout(startCamera, 500);
-        });
-
-        // Logika saat Scan Berhasil
+        // LOGIKA SCAN
         function onScanSuccess(decodedText, decodedResult) {
             if (isScanning) return;
             
             isScanning = true;
-            stopCamera(); // Hentikan kamera agar tidak scan ganda
+            stopCamera(); 
             
             Swal.fire({
                 title: 'Memproses Data...',
@@ -155,47 +182,24 @@
                     Swal.fire({
                         icon: 'success',
                         title: data.tipe === 'keluar' ? 'Diizinkan Keluar' : 'Siswa Kembali',
-                        text: `${data.data}`,
+                        text: data.data,
                         timer: 2000,
                         showConfirmButton: false
                     });
 
-                    // Update UI Daftar Siswa Keluar
-                    listSiswaKeluar.innerHTML = ''; // Kosongkan daftar lama
-                    
-                    if (data.listKeluar && data.listKeluar.length > 0) {
-                        data.listKeluar.forEach(siswa => {
-                            const li = document.createElement('li');
-                            li.className = "flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-200";
-                            li.innerHTML = `
-                                <div>
-                                    <p class="font-bold text-slate-700 text-sm">${siswa.nama}</p>
-                                    <p class="text-xs text-slate-500">Kelas: ${siswa.kelas}</p>
-                                </div>
-                                <span class="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-1 rounded">Keluar: ${siswa.jam}</span>
-                            `;
-                            listSiswaKeluar.appendChild(li);
-                        });
-                    } else {
-                        listSiswaKeluar.innerHTML = '<li class="text-center text-sm text-slate-400 py-4">Semua siswa sudah berada di sekolah.</li>';
-                    }
-
-                    // Update Badge Kuota
-                    kuotaBadge.textContent = `Sisa Kuota: ${data.sisaKuota}`;
-                    resultBox.classList.remove('hidden');
+                    renderListKeluar(data.listKeluar, data.sisaKuota);
 
                 } else {
                     Swal.fire({ icon: 'error', title: 'Gagal', text: data.message });
                 }
             })
             .catch(error => {
-                console.error(error);
-                Swal.fire('Error Browser', error.message === 'Failed to fetch' ? 'Koneksi terputus.' : error.message, 'error');
+                Swal.fire('Error', 'Gagal memproses data.', 'error');
             })
             .finally(() => {
                 setTimeout(() => {
                     isScanning = false;
-                    startCamera(); // Nyalakan kamera lagi otomatis
+                    startCamera();
                 }, 2500);
             });
         }
