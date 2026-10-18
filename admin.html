@@ -125,25 +125,14 @@
                     Swal.fire({ title: loadingMsg, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                     try {
                         const response = await fetch(SCRIPT_URL, {
-                            redirect: 'follow',
                             method: 'POST',
-                            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                            body: JSON.stringify(payload)
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            body: new URLSearchParams({ data: JSON.stringify(payload) })
                         });
-                        
-                        // Baca balasan Google sebagai Teks biasa terlebih dahulu
-                        const textData = await response.text(); 
-                        try {
-                            const jsonData = JSON.parse(textData); // Coba jadikan JSON
-                            return jsonData;
-                        } catch(e) {
-                            // Jika bukan JSON (HTML Error dari Google), tampilkan error aslinya
-                            console.error("Error Asli Google:", textData);
-                            Swal.fire('Error Sistem Google', textData.substring(0, 150) + '...', 'error');
-                            return { status: false };
-                        }
+                        return await response.json();
                     } catch (error) {
-                        Swal.fire('Error', 'Koneksi terputus atau URL salah.', 'error');
+                        console.error(error);
+                        Swal.fire('Error', 'Gagal terhubung. Pastikan internet lancar.', 'error');
                         return { status: false };
                     }
                 },
