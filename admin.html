@@ -125,13 +125,15 @@
                     Swal.fire({ title: loadingMsg, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                     try {
                         const response = await fetch(SCRIPT_URL, {
+                            redirect: 'follow', // <--- BARIS INI WAJIB DITAMBAHKAN
                             method: 'POST',
                             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                             body: JSON.stringify(payload)
                         });
                         return await response.json();
                     } catch (error) {
-                        Swal.fire('Error', 'Koneksi ke server gagal.', 'error');
+                        console.error(error);
+                        Swal.fire('Error', 'Koneksi diblokir. Pastikan akses Google Apps Script adalah "Siapa Saja".', 'error');
                         return { status: false };
                     }
                 },
