@@ -26,7 +26,6 @@
     <!-- HALAMAN DASHBOARD -->
     <div x-show="isLoggedIn" x-cloak class="min-h-screen flex flex-col">
         
-        <!-- Navbar (Disembunyikan saat cetak) -->
         <nav class="bg-white shadow-sm border-b border-slate-200 px-4 py-3 print:hidden">
             <div class="max-w-6xl mx-auto flex justify-between items-center">
                 <h1 class="font-bold text-lg text-slate-700">e-Izin Spensa</h1>
@@ -40,7 +39,7 @@
 
         <main class="flex-1 max-w-6xl w-full mx-auto p-4 mt-4">
             
-            <!-- TAB: DATA LOG -->
+            <!-- TAB DATA LOG -->
             <div x-show="activeMenu === 'data'">
                 <div class="flex justify-between items-end mb-4 print:hidden">
                     <h2 class="text-xl font-bold text-slate-700">Rekap Izin Keluar</h2>
@@ -50,13 +49,11 @@
                     </div>
                 </div>
 
-                <!-- Header Cetak -->
                 <div class="hidden print:block text-center mb-6">
                     <h2 class="text-xl font-bold">Laporan Izin Keluar Siswa</h2>
                     <p class="text-sm">Dicetak pada: <span x-text="new Date().toLocaleString('id-ID')"></span></p>
                 </div>
 
-                <!-- Tabel Data Responsif -->
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <div class="overflow-x-auto">
                         <table class="w-full text-left border-collapse">
@@ -93,16 +90,22 @@
                 </div>
             </div>
 
-            <!-- TAB: PENGATURAN -->
+            <!-- TAB PENGATURAN -->
             <div x-show="activeMenu === 'pengaturan'" class="print:hidden">
                 <h2 class="text-xl font-bold text-slate-700 mb-4">Pengaturan Sistem</h2>
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 max-w-md">
-                    <label class="block text-sm font-medium text-slate-700 mb-2">Batas Maksimum Siswa Keluar Bersamaan</label>
-                    <div class="flex gap-2">
-                        <input type="number" x-model="maxIzin" class="flex-1 px-4 py-2 rounded-lg bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <button @click="saveSettings()" class="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm hover:bg-slate-700">Simpan</button>
-                    </div>
-                    <p class="text-xs text-slate-500 mt-2">Jika kuota penuh, scanner tidak akan mengizinkan siswa lain keluar hingga ada yang kembali.</p>
+                    
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Batas Maksimum Siswa Keluar</label>
+                    <input type="number" x-model="maxIzin" class="w-full px-4 py-2 rounded-lg bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+                    
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Zona Waktu</label>
+                    <select x-model="zonaWaktu" class="w-full px-4 py-2 rounded-lg bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-6">
+                        <option value="GMT+7">WIB (Waktu Indonesia Barat / GMT+7)</option>
+                        <option value="GMT+8">WITA (Waktu Indonesia Tengah / GMT+8)</option>
+                        <option value="GMT+9">WIT (Waktu Indonesia Timur / GMT+9)</option>
+                    </select>
+
+                    <button @click="saveSettings()" class="w-full bg-slate-800 text-white px-4 py-3 rounded-lg text-sm font-semibold hover:bg-slate-700">Simpan Pengaturan</button>
                 </div>
             </div>
 
@@ -117,9 +120,10 @@
             Alpine.data('adminApp', () => ({
                 isLoggedIn: false,
                 pin: '',
-                activeMenu: 'data', // 'data' atau 'pengaturan'
+                activeMenu: 'data',
                 logs: [],
                 maxIzin: 5,
+                zonaWaktu: 'GMT+9',
 
                 async requestAPI(payload, loadingMsg = 'Memproses...') {
                     Swal.fire({ title: loadingMsg, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
@@ -127,11 +131,10 @@
                         const payloadString = JSON.stringify(payload);
                         const urlWithParams = SCRIPT_URL + "?data=" + encodeURIComponent(payloadString);
                         
-                        const response = await fetch(urlWithParams, { method: 'GET' });
+                        const response = await fetch(urlWithParams, { method: 'GET', redirect: 'follow' });
                         return await response.json();
                     } catch (error) {
-                        console.error(error);
-                        Swal.fire('Error', 'Gagal memproses data. Pastikan URL Script benar dan Akses Deploy disetel "Siapa Saja".', 'error');
+                        Swal.fire('Error', 'Gagal memproses data.', 'error');
                         return { status: false };
                     }
                 },
@@ -159,13 +162,14 @@
                     if (res.status) {
                         this.logs = res.logs;
                         this.maxIzin = res.maxIzin;
+                        this.zonaWaktu = res.zonaWaktu || 'GMT+9'; // Sinkronisasi zona waktu
                         Swal.close();
                     }
                 },
 
                 async saveSettings() {
                     if (!this.maxIzin || this.maxIzin < 1) return Swal.fire('Error', 'Jumlah tidak valid', 'error');
-                    const res = await this.requestAPI({ action: 'updateSettings', newMax: this.maxIzin }, 'Menyimpan...');
+                    const res = await this.requestAPI({ action: 'updateSettings', newMax: this.maxIzin, newTimeZone: this.zonaWaktu }, 'Menyimpan...');
                     if (res.status) {
                         Swal.fire('Berhasil', 'Pengaturan diperbarui.', 'success');
                     }
