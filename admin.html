@@ -132,7 +132,7 @@
                         return await response.json();
                     } catch (error) {
                         console.error(error);
-                        Swal.fire('Error', 'Gagal terhubung. Pastikan internet lancar.', 'error');
+                        Swal.fire('Error', 'Gagal memproses data. Pastikan URL Script benar dan Akses Deploy disetel "Siapa Saja".', 'error');
                         return { status: false };
                     }
                 },
